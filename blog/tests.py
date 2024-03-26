@@ -16,5 +16,6 @@ class ModelTesting(TestCase):
     def test_say_something(self):
         response = self.client.get(reverse('saySomething'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 
-            '<h1 style="color:green">What is wrong with the leaders of today?</h1>', html=True)
+        self.assertContains(response,
+                            '<h1 style="color:green">What is wrong with the leaders of today?</h1>',
+                            html=True)
