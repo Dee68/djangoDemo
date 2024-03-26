@@ -12,8 +12,10 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 import django_heroku
 # import dj_database_url
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -84,7 +86,35 @@ DATABASES = {
     }
 }
 
+if 'test' in sys.argv:
+    # Running tests, exclude django_heroku
+    # Disable django_heroku for test environment
+    # Set any django_heroku configurations to None
 
+    # Example 1: Database configuration
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
+
+    # Example 2: Middleware
+    MIDDLEWARE = [
+        # Add your custom middleware here
+        # Remove django_heroku middleware for testing
+        middleware for middleware in MIDDLEWARE if 'django_heroku' not in middleware
+    ]
+
+    # Example 3: Other settings
+    # For instance, if you have django_heroku.logging enabled, you can disable it for testing
+    # django_heroku.logging automatically sets up logging, you might want to disable it during testing
+    LOGGING_CONFIG = None
+
+    # Example 4: Clearing other django_heroku configurations
+    # You can set any specific configurations to None that you suspect might cause issues during testing
+    # For instance, if you have any custom configurations related to django_heroku in your settings, set them to None
+
+    # django_heroku.some_setting = None
+    # django_heroku.another_setting = None
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
