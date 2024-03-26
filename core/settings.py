@@ -11,10 +11,11 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import secrets
 import os
 import sys
 import django_heroku
-# import dj_database_url
+import dj_database_url
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,12 +26,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-a1q9ca6#io0(l%mr6*#81h&g8ksr(*r7ht1e6%o15vrqi)o&lm'
+# SECRET_KEY = 'django-insecure-a1q9ca6#io0(l%mr6*#81h&g8ksr(*r7ht1e6%o15vrqi)o&lm'
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    default=secrets.token_urlsafe(nbytes=64),
+)
+
+# The `DYNO` env var is set on Heroku CI, but it's not a real Heroku app, so we have to
+# also explicitly exclude CI:
+# https://devcenter.heroku.com/articles/heroku-ci#immutable-environment-variables
+IS_HEROKU_APP = "DYNO" in os.environ and not "CI" in os.environ
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if not IS_HEROKU_APP:
+    DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+if IS_HEROKU_APP:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -79,42 +93,29 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if IS_HEROKU_APP:
+    # In production on Heroku the database configuration is derived from the `DATABASE_URL`
+    # environment variable by the dj-database-url package. `DATABASE_URL` will be set
+    # automatically by Heroku when a database addon is attached to your Heroku app. See:
+    # https://devcenter.heroku.com/articles/provisioning-heroku-postgres
+    # https://github.com/jazzband/dj-database-url
+    DATABASES = {
+        "default": dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=True,
+        ),
     }
-}
-
-if 'test' in sys.argv:
-    # Running tests, exclude django_heroku
-    # Disable django_heroku for test environment
-    # Set any django_heroku configurations to None
-
-    # Example 1: Database configuration
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+else:
+    # When running locally in development or in CI, a sqlite database file will be used instead
+    # to simplify initial setup. Longer term it's recommended to use Postgres locally too.
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
 
-    # Example 2: Middleware
-    MIDDLEWARE = [
-        # Add your custom middleware here
-        # Remove django_heroku middleware for testing
-        middleware for middleware in MIDDLEWARE if 'django_heroku' not in middleware
-    ]
-
-    # Example 3: Other settings
-    # For instance, if you have django_heroku.logging enabled, you can disable it for testing
-    # django_heroku.logging automatically sets up logging, you might want to disable it during testing
-    LOGGING_CONFIG = None
-
-    # Example 4: Clearing other django_heroku configurations
-    # You can set any specific configurations to None that you suspect might cause issues during testing
-    # For instance, if you have any custom configurations related to django_heroku in your settings, set them to None
-
-    # django_heroku.some_setting = None
-    # django_heroku.another_setting = None
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
@@ -149,7 +150,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
